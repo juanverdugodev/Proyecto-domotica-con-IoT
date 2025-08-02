@@ -1,0 +1,280 @@
+[
+    {
+        "id": "color_picker",
+        "type": "ui_colour_picker",
+        "z": "0bf02ead7ab3a3f1",
+        "name": "RGB Picker",
+        "label": "Color RGB",
+        "group": "c9389cd9151b9ed8",
+        "format": "rgb",
+        "outformat": "object",
+        "showSwatch": true,
+        "showPicker": true,
+        "showValue": true,
+        "showHue": false,
+        "showAlpha": false,
+        "showLightness": true,
+        "square": "false",
+        "order": 3,
+        "width": 1,
+        "height": 1,
+        "passthru": true,
+        "topic": "",
+        "topicType": "str",
+        "className": "",
+        "x": 170,
+        "y": 360,
+        "wires": [
+            [
+                "rgb_to_string"
+            ]
+        ]
+    },
+    {
+        "id": "rgb_to_string",
+        "type": "function",
+        "z": "0bf02ead7ab3a3f1",
+        "name": "RGB -> Texto",
+        "func": "let r = msg.payload.r;\nlet g = msg.payload.g;\nlet b = msg.payload.b;\n\n// El ESP32 espera el payload como string \"r,g,b\"\nmsg.payload = `${r},${g},${b}`;\nmsg.topic = \"/juan/control/cuarto/rgb\";\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 390,
+        "y": 360,
+        "wires": [
+            [
+                "mqtt_out_rgb",
+                "92200ae41b3b974c"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt_out_rgb",
+        "type": "mqtt out",
+        "z": "0bf02ead7ab3a3f1",
+        "name": "Publicar RGB",
+        "topic": "/juan/control/cuarto/rgb",
+        "qos": "",
+        "retain": "true",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "mqtt_broker",
+        "x": 640,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "92200ae41b3b974c",
+        "type": "function",
+        "z": "0bf02ead7ab3a3f1",
+        "name": "recopilación",
+        "func": "// Recuperar valores previos del contexto del flujo\nlet estadoHumidificador = flow.get(\"humidificador_estado\") || null;\nlet humedad = flow.get(\"humedad\") || null;\nlet temperatura = flow.get(\"temperatura\") || null;\nlet estadoLuz = flow.get(\"estadoLuz\") || null;\nlet colorRGB = flow.get(\"color_rgb\") || \"0,0,0\"; // Valor por defecto\n\n// Actualizar contexto en función del topic\nif (msg.topic.includes(\"humidificador\")) {\n    estadoHumidificador = msg.payload;\n    flow.set(\"humidificador_estado\", estadoHumidificador);\n} else if (msg.topic.includes(\"humedad\")) {\n    humedad = parseFloat(msg.payload);\n    flow.set(\"humedad\", humedad);\n} else if (msg.topic.includes(\"temperatura\")) {\n    temperatura = parseFloat(msg.payload);\n    flow.set(\"temperatura\", temperatura);\n} else if (msg.topic.includes(\"luz\")) {\n    estadoLuz = msg.payload;\n    flow.set(\"estadoLuz\", estadoLuz);\n} else if (msg.topic.includes(\"rgb\")) {\n    // Color RGB viene en msg.rgb\n    colorRGB = msg.rgb || msg.payload;\n    flow.set(\"color_rgb\", colorRGB);\n}\n\n// Solo enviar si todos los datos principales existen\nif (estadoHumidificador !== null && humedad !== null && temperatura !== null && estadoLuz !== null) {\n    return {\n        payload: temperatura,\n        humedad: humedad,\n        humidificadorEstado: estadoHumidificador,\n        luzEstado: estadoLuz,\n        rgb: colorRGB\n    };\n}\n\nreturn null;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 410,
+        "y": 200,
+        "wires": [
+            [
+                "ui_template_display",
+                "ab2f3edb0118698c"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt_in_temp",
+        "type": "mqtt in",
+        "z": "0bf02ead7ab3a3f1",
+        "name": "Temperatura",
+        "topic": "/juan/control/cuarto/sensor/dht22/temperatura",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "mqtt_broker",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 150,
+        "y": 160,
+        "wires": [
+            [
+                "92200ae41b3b974c"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt_in_hum",
+        "type": "mqtt in",
+        "z": "0bf02ead7ab3a3f1",
+        "name": "Humedad",
+        "topic": "/juan/control/cuarto/sensor/dht22/humedad",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "mqtt_broker",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 150,
+        "y": 220,
+        "wires": [
+            [
+                "92200ae41b3b974c"
+            ]
+        ]
+    },
+    {
+        "id": "f7f3348d34327ce3",
+        "type": "mqtt in",
+        "z": "0bf02ead7ab3a3f1",
+        "name": "Estado Humidificador",
+        "topic": "/juan/control/cuarto/humidificador",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "mqtt_broker",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 140,
+        "y": 280,
+        "wires": [
+            [
+                "92200ae41b3b974c"
+            ]
+        ]
+    },
+    {
+        "id": "c8c329aa19b16cba",
+        "type": "mqtt in",
+        "z": "0bf02ead7ab3a3f1",
+        "name": "Estado luz",
+        "topic": "/juan/control/cuarto/sensor/luz/estado",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "mqtt_broker",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 140,
+        "y": 100,
+        "wires": [
+            [
+                "92200ae41b3b974c"
+            ]
+        ]
+    },
+    {
+        "id": "ui_template_display",
+        "type": "ui_template",
+        "z": "0bf02ead7ab3a3f1",
+        "group": "c9389cd9151b9ed8",
+        "name": "Indicadores LED",
+        "order": 1,
+        "width": 14,
+        "height": 7,
+        "format": "<div style=\"display: flex; height: 100%; font-family: sans-serif; position: relative;\">\n    <!-- Columna 1: Indicadores -->\n    <div style=\"flex: 1; padding: 10px;\">\n        <h2 style=\"text-align:center; margin-bottom: 20px;\">MONITOREO</h2>\n\n        <div style=\"margin-bottom: 20px; text-align:center;\">\n            <h4>Temperatura: {{msg.payload}} °C</h4>\n            <div style=\"width: 40px; height: 40px; border-radius: 50%; margin:auto\" ng-style=\"{\n                'background-color': (\n                    msg.payload < 16 ? '#31eef7' :\n                    (msg.payload <= 22 ? '#31f731' : '#f7a831')\n                )\n            }\"></div>\n        </div>\n\n        <div style=\"margin-bottom: 20px; text-align:center;\">\n            <h4>Humedad: {{msg.humedad}} %</h4>\n            <div style=\"width: 40px; height: 40px; border-radius: 50%; margin:auto\" ng-style=\"{\n                'background-color': (\n                    msg.humedad < 40 ? '#f7a431' :\n                    (msg.humedad <= 60 ? '#31f731' : '#317af7')\n                )\n            }\"></div>\n        </div>\n\n        <div style=\"margin-bottom: 20px; text-align:center;\">\n            <h4>Humidificador: {{msg.humidificadorEstado}}</h4>\n            <div style=\"width: 40px; height: 40px; border-radius: 50%; margin:auto\" ng-style=\"{\n                'background-color': (\n                    msg.humidificadorEstado == 'encendido' ? '#31f731' : '#f73131'\n                )\n            }\"></div>\n        </div>\n    </div>\n\n    <!-- Columna 2: Imagen + LED -->\n    <div style=\"flex: 1; display: flex; align-items: center; justify-content: center; position: relative;\">\n        <!-- Barra LED simulada -->\n        <div style=\"\n            position: absolute;\n            top: 15px;\n            right: 15px;\n            width: 120px;\n            height: 20px;\n            border-radius: 10px;\n            border: 1px solid #555;\n            background-color: {{msg.luzEstado === 'hay_luz' ? '#000000' : ('rgb(' + msg.rgb + ')')}};\n            z-index: 10;\">\n        </div>\n\n        <!-- Imagen del cuarto -->\n        <img ng-src=\"{{msg.luzEstado === 'hay_luz' ? '/cuarto-conluz.png' : '/cuarto-sinluz.png'}}\"\n             style=\"max-width: 100%; max-height: 80%;\" />\n    </div>\n\n    <!-- Picker oculto -->\n    <input type=\"color\" class=\"hidden-picker\" />\n\n    <style>\n        .hidden-picker {\n            display: none !important;\n        }\n    </style>\n</div>\n",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 620,
+        "y": 190,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "ab2f3edb0118698c",
+        "type": "function",
+        "z": "0bf02ead7ab3a3f1",
+        "name": "envio a thinkspeak",
+        "func": "const API_KEY = \"KM6M6GIIVAE2FAJ3\"\n\n// Extraer datos del mensaje anterior\nlet temperatura = msg.payload;\nlet humedad = msg.humedad;\nlet luz = (msg.luzEstado === \"hay_luz\") ? 1 : 0;\n\n// Construir payload para ThingSpeak\nmsg.method = \"POST\";\nmsg.headers = {\n    \"Content-Type\": \"application/x-www-form-urlencoded\"\n};\nmsg.payload = `api_key=${API_KEY}&field1=${temperatura}&field2=${humedad}&field3=${luz}`;\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 550,
+        "y": 100,
+        "wires": [
+            [
+                "1769b724908a7a09"
+            ]
+        ]
+    },
+    {
+        "id": "1769b724908a7a09",
+        "type": "http request",
+        "z": "0bf02ead7ab3a3f1",
+        "name": "",
+        "method": "POST",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "https://api.thingspeak.com/update",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 770,
+        "y": 120,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "c9389cd9151b9ed8",
+        "type": "ui_group",
+        "name": "Dashboard",
+        "tab": "444c87e538cd3b9c",
+        "order": 1,
+        "disp": false,
+        "width": "14",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "mqtt_broker",
+        "type": "mqtt-broker",
+        "name": "HiveMQ Broker",
+        "broker": "broker.hivemq.com",
+        "port": "1883",
+        "clientid": "",
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "closeTopic": "",
+        "closeQos": "0",
+        "closePayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": ""
+    },
+    {
+        "id": "444c87e538cd3b9c",
+        "type": "ui_tab",
+        "name": "Dashboard cuarto",
+        "icon": "dashboard",
+        "disabled": false,
+        "hidden": false
+    }
+]
