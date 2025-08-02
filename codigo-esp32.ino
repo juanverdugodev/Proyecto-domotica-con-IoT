@@ -91,7 +91,7 @@ void controlarRele(bool encender) {
     const char* estado = encender ? "encendido" : "apagado";
     Serial.printf("Rele: %s\n", estado);
     mqtt.publish("/juan/control/cuarto/humidificador", estado, true);
-    actualizarDisplay();  // Actualiza display de inmediato
+    actualizarDisplay();
   }
 }
 
@@ -161,34 +161,47 @@ void recibirMQTT(char* topico, byte* datos, unsigned int len) {
   Serial.printf("Topic %s: %s\n", topico, msg.c_str());
 
   if (String(topico) == "/juan/control/cuarto/rgb") {
-    // Definimos el tamaño del documento JSON, 200 bytes son suficientes
-    StaticJsonDocument<200> doc;
-    DeserializationError error = deserializeJson(doc, msg);
+    int r = -1, g = -1, b = -1;
 
-    // Verificamos si la deserealización fue exitosa
-    if (error) {
-      Serial.print("deserializeJson() failed: ");
-      Serial.println(error.f_str());
-      return;
+    if (msg.indexOf('{') != -1) {
+      // Modo JSON
+      StaticJsonDocument<200> doc;
+      DeserializationError error = deserializeJson(doc, msg);
+      if (!error) {
+        r = doc["r"];
+        g = doc["g"];
+        b = doc["b"];
+      } else {
+        Serial.print("Error JSON: ");
+        Serial.println(error.f_str());
+        return;
+      }
+    } else {
+      // Modo texto: "R,G,B"
+      int primero = msg.indexOf(',');
+      int segundo = msg.indexOf(',', primero + 1);
+      if (primero != -1 && segundo != -1) {
+        r = msg.substring(0, primero).toInt();
+        g = msg.substring(primero + 1, segundo).toInt();
+        b = msg.substring(segundo + 1).toInt();
+      } else {
+        Serial.println("Formato RGB invalido (esperado: R,G,B)");
+        return;
+      }
     }
 
-    int r = doc["r"];
-    int g = doc["g"];
-    int b = doc["b"];
-    
-    // Verificamos que los valores sean válidos
     if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) {
       if (!hayLuz && permisoRGB) {
         for (int i = 0; i < LEDS_RGB; i++) {
           rgb.setPixelColor(i, rgb.Color(r, g, b));
         }
         rgb.show();
-        Serial.println("RGB color actualizado");
+        Serial.printf("RGB actualizado a: %d, %d, %d\n", r, g, b);
       } else {
-        Serial.println("RGB ignorado: hay luz o no esta encendido");
+        Serial.println("RGB ignorado: hay luz o RGB no activado");
       }
     } else {
-      Serial.println("RGB invalido (valores fuera de rango)");
+      Serial.println("Valores RGB fuera de rango");
     }
   }
 
@@ -213,14 +226,13 @@ void setup() {
   mqtt.setServer(MQTT_SERVIDOR, MQTT_PUERTO);
   mqtt.setCallback(recibirMQTT);
 
-  // Inicializar pantalla OLED
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
     Serial.println("Error OLED");
     while (true);
   }
   display.clearDisplay();
   display.display();
-  actualizarDisplay();  // Mostrar valores iniciales
+  actualizarDisplay();
 }
 
 void loop() {
@@ -248,7 +260,7 @@ void loop() {
     hayLuz = digitalRead(PIN_LUZ) == LOW;
     Serial.println(hayLuz ? "Hay Luz" : "Sin Luz");
     mqtt.publish("/juan/control/cuarto/sensor/luz/estado", hayLuz ? "hay_luz" : "sin_luz", true);
-    actualizarDisplay();  // Mostrar lectura cada 15 segundos
+    actualizarDisplay();
 
     if (hayLuz && rgbEncendido) controlarRGB(false);
 
@@ -261,7 +273,6 @@ void loop() {
     actualizarIndicadores();
   }
 
-  // Botón manual
   bool btn = digitalRead(PIN_BTN);
   if (btnAnt == HIGH && btn == LOW) {
     delay(30);
